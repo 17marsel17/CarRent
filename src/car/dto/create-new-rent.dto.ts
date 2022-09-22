@@ -1,5 +1,5 @@
-export interface CreateNewRentDto{
-  carId: string;
-  dateTo: string;
-  dateFrom: string;
+export interface CreateNewRentDto {
+  car_id: string;
+  date_to: string;
+  date_from: string;
 }

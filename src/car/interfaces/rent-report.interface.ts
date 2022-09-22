@@ -1,4 +1,4 @@
 export interface RentReportInterface {
-  carId: string;
+  car_id: string;
   count: number;
 }

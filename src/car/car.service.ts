@@ -6,18 +6,31 @@ import { CreateNewRentDto } from './dto/create-new-rent.dto';
 import * as moment from 'moment';
 import { RentEntity } from '../entity/rent.entity';
 import { ReportDto } from './dto/report.dto';
+import { CarEntity } from '../entity/car.entity';
+import * as util from 'util';
 
 @Injectable()
 export class CarService {
   constructor(private readonly databaseService: DatabaseService) {}
 
   async getCar(availableCarDto: AvailableCarDto): Promise<boolean> {
-    this.checkDate(availableCarDto.dateTo);
-    this.checkDate(availableCarDto.dateFrom);
+    const cars = await this.getAllCars();
+
+    const car = cars.find((el) => el.car_id === availableCarDto.car_id);
+
+    if (!car) {
+      throw new BadRequestException(
+        'Машина с таким carId не существует. Машины в парке:' +
+          JSON.stringify(cars),
+      );
+    }
+
+    this.checkDate(availableCarDto.date_to);
+    this.checkDate(availableCarDto.date_from);
 
     if (
-      moment(availableCarDto.dateTo, 'YYYY-MM-DD') <
-      moment(availableCarDto.dateFrom, 'YYYY_MM_DD')
+      moment(availableCarDto.date_to, 'YYYY-MM-DD') <
+      moment(availableCarDto.date_from, 'YYYY_MM_DD')
     ) {
       throw new BadRequestException(
         'Дата окончания бронирования не может быть меньше даты начала бронирования',
@@ -26,16 +39,18 @@ export class CarService {
 
     const result = await this.databaseService.getAvailableCar(availableCarDto);
 
-    console.log('result', result);
-
     if (result.length) {
       return false;
     }
     return true;
   }
 
+  async getAllCars(): Promise<CarEntity[]> {
+    return await this.databaseService.findAllCars();
+  }
+
   getPrice(priceCarDto: PriceCarDto): number {
-    const days = this.getCountDays(priceCarDto.dateFrom, priceCarDto.dateTo);
+    const days = this.getCountDays(priceCarDto.date_from, priceCarDto.date_to);
 
     if (days > 30) {
       throw new Error('Максимальный срок аренды 30 дней');
@@ -60,16 +75,15 @@ export class CarService {
   }
 
   async getReport(reportDto: ReportDto) {
-    const firstDate = moment(reportDto.currentDate)
-      .subtract(30, 'days')
-      .toString();
-    const result = await this.databaseService.getReport(
-      firstDate,
-      reportDto.currentDate,
-    );
+    const result = await this.databaseService.getReport(reportDto.current_date);
+
+    const cars: CarEntity[] = await this.getAllCars();
 
     result.map((data) => {
       data.count /= 30;
+
+      data.car_id =
+        cars.find((el) => el.car_id === data.car_id)?.number_car || data.car_id;
     });
 
     let total_percent = 0;
@@ -78,7 +92,7 @@ export class CarService {
     });
 
     return {
-      total_percent: total_percent,
+      total_percent: total_percent / 5,
       car: result,
     };
   }
@@ -87,9 +101,9 @@ export class CarService {
     createNewRentDto: CreateNewRentDto,
   ): Promise<RentEntity[]> {
     const available = await this.getCar({
-      carId: createNewRentDto.carId,
-      dateFrom: createNewRentDto.dateFrom,
-      dateTo: createNewRentDto.dateTo,
+      car_id: createNewRentDto.car_id,
+      date_from: createNewRentDto.date_from,
+      date_to: createNewRentDto.date_to,
     });
 
     if (!available) {
@@ -97,18 +111,18 @@ export class CarService {
     }
 
     const price = this.getPrice({
-      dateFrom: createNewRentDto.dateFrom,
-      dateTo: createNewRentDto.dateTo,
+      date_from: createNewRentDto.date_from,
+      date_to: createNewRentDto.date_to,
     });
 
     const newRent: RentEntity = {
-      carId: createNewRentDto.carId,
-      dateFrom: createNewRentDto.dateFrom,
-      dateTo: createNewRentDto.dateTo,
+      car_id: createNewRentDto.car_id,
+      date_from: createNewRentDto.date_from,
+      date_to: createNewRentDto.date_to,
       price: price,
-      countDays: this.getCountDays(
-        createNewRentDto.dateFrom,
-        createNewRentDto.dateTo,
+      count_days: this.getCountDays(
+        createNewRentDto.date_from,
+        createNewRentDto.date_to,
       ),
     };
     return this.databaseService.createNewCarRent(newRent);
@@ -126,21 +140,37 @@ export class CarService {
   }
 
   async initDb() {
+    await this.databaseService.createCarDatabase();
+    const numbersOfCar = [
+      'А123CB777',
+      'M234СВ777',
+      'P456HO777',
+      'T567TT777',
+      'E678CB777',
+    ];
+
+    for (let i = 1; i <= 5; i++) {
+      await this.databaseService.insertCar({
+        car_id: i.toString(),
+        number_car: numbersOfCar[i - 1],
+      });
+    }
+
     await this.databaseService.createRentDatabase();
 
     const dateFrom = moment(new Date()).format('yyyy-MM-DD');
 
     const price = this.getPrice({
-      dateFrom: dateFrom,
-      dateTo: dateFrom,
+      date_from: dateFrom,
+      date_to: dateFrom,
     });
 
     await this.databaseService.createNewCarRent({
-      carId: '1',
-      dateTo: dateFrom,
-      dateFrom: dateFrom,
+      car_id: '1',
+      date_to: dateFrom,
+      date_from: dateFrom,
       price: price,
-      countDays: this.getCountDays(dateFrom, dateFrom),
+      count_days: this.getCountDays(dateFrom, dateFrom),
     });
   }
 

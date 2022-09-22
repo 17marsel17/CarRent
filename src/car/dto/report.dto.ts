@@ -1,3 +1,3 @@
 export interface ReportDto {
-  currentDate: string;
+  current_date: string;
 }

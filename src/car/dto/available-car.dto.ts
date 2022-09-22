@@ -1,6 +1,5 @@
-
 export interface AvailableCarDto {
-  carId: string;
-  dateTo: string;
-  dateFrom: string;
+  car_id: string;
+  date_to: string;
+  date_from: string;
 }

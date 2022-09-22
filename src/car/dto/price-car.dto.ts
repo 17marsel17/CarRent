@@ -1,4 +1,4 @@
 export class PriceCarDto {
-  dateFrom: string;
-  dateTo: string;
+  date_from: string;
+  date_to: string;
 }

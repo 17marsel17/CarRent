@@ -19,20 +19,45 @@ export class DatabaseService {
     await this.executeQuery(`
       CREATE TABLE IF NOT EXISTS CarRent (
         id SERIAL PRIMARY KEY,
-        carId VARCHAR(10) NOT NULL,
-        dateTo DATE NOT NULL,
-        dateFrom DATE NOT NULL,
+        car_id VARCHAR(10) NOT NULL,
+        date_to DATE NOT NULL,
+        date_from DATE NOT NULL,
         price FLOAT NOT NULL,
-        countDays INTEGER NOT NULL
+        count_days INTEGER NOT NULL
       );`);
   }
 
-  async createNewCarRent(rent: RentEntity): Promise<RentEntity[]> {
-    console.log(rent);
+  async createCarDatabase() {
+    await this.executeQuery(`
+      CREATE TABLE IF NOT EXISTS Car (
+        id SERIAL PRIMARY KEY,
+        car_id VARCHAR(10) NOT NULL,
+        number_car VARCHAR(9) NOT NULL);`);
+  }
+
+  async insertCar(car: CarEntity): Promise<CarEntity[]> {
     return await this.executeQuery(`
-      INSERT INTO CarRent (carId, dateTo, dateFrom, price, countDays)
+      INSERT INTO Car (car_id, number_car)
+      VALUES ( '${car.car_id}', '${car.number_car}' );`);
+  }
+
+  async findCar(carId: string): Promise<CarEntity[]> {
+    return await this.executeQuery(`
+      SELECT number_car
+      FROM Car
+      WHERE car_id='${carId}'`);
+  }
+
+  async findAllCars(): Promise<CarEntity[]> {
+    return await this.executeQuery(`
+      SELECT * FROM Car`);
+  }
+
+  async createNewCarRent(rent: RentEntity): Promise<RentEntity[]> {
+    return await this.executeQuery(`
+      INSERT INTO CarRent (car_id, date_to, date_from, price, count_days)
       VALUES (
-      ${rent.carId}, '${rent.dateTo}', '${rent.dateFrom}', ${rent.price}, ${rent.countDays}
+      ${rent.car_id}, '${rent.date_to}', '${rent.date_from}', ${rent.price}, ${rent.count_days}
       );`);
   }
 
@@ -40,23 +65,20 @@ export class DatabaseService {
     availableCarDto: AvailableCarDto,
   ): Promise<CarEntity[]> {
     return await this.executeQuery(`
-      SELECT carId
+      SELECT car_id
       FROM CarRent
-      WHERE dateFrom BETWEEN '${availableCarDto.dateFrom}'::DATE + INTERVAL '-3 day' AND '${availableCarDto.dateTo}'::DATE + INTERVAL '3 day' AND
-            dateTo BETWEEN '${availableCarDto.dateFrom}'::DATE + INTERVAL '-3 day' AND '${availableCarDto.dateTo}'::DATE + INTERVAL '3 day' AND 
-            carId='${availableCarDto.carId}'`);
+      WHERE date_from BETWEEN '${availableCarDto.date_from}'::DATE + INTERVAL '-3 day' AND '${availableCarDto.date_to}'::DATE + INTERVAL '3 day' AND
+            date_to BETWEEN '${availableCarDto.date_from}'::DATE + INTERVAL '-3 day' AND '${availableCarDto.date_to}'::DATE + INTERVAL '3 day' AND 
+            car_id='${availableCarDto.car_id}'`);
   }
 
-  async getReport(
-    firstDate: string,
-    lastDate: string,
-  ): Promise<RentReportInterface[]> {
+  async getReport(lastDate: string): Promise<RentReportInterface[]> {
     return await this.executeQuery(`
-      SELECT carId, SUM(countDays)
+      SELECT car_id, SUM(count_days)
       as count
       FROM CarRent
-      WHERE dateTo BETWEEN '${firstDate}'::DATE AND '${lastDate}'::DATE AND
-            dateFrom BETWEEN '${firstDate}'::DATE AND '${lastDate}'::DATE AND
-            dateTo < dateFrom`);
+      WHERE date_to BETWEEN '${lastDate}'::DATE + INTERVAL '-1 month' AND '${lastDate}'::DATE AND
+            date_from BETWEEN '${lastDate}'::DATE + INTERVAL '-1 month' AND '${lastDate}'::DATE
+      GROUP BY car_id`);
   }
 }
