@@ -17,19 +17,23 @@ export class DatabaseService {
 
   async createRentDatabase() {
     await this.executeQuery(`
-      CREATE_TABLE CarRent(
-        id VARCHAR(30) PRIMARY KEY,
+      CREATE TABLE IF NOT EXISTS CarRent (
+        id SERIAL PRIMARY KEY,
         carId VARCHAR(10) NOT NULL,
         dateTo DATE NOT NULL,
         dateFrom DATE NOT NULL,
-        price FLOAT NOT NULL
-      )`);
+        price FLOAT NOT NULL,
+        countDays INTEGER NOT NULL
+      );`);
   }
 
   async createNewCarRent(rent: RentEntity): Promise<RentEntity[]> {
+    console.log(rent);
     return await this.executeQuery(`
-      INSERT INTO CarRent (carId, dateTo, dateFrom, price)
-      VALUES (${(rent.carId, rent.dateTo, rent.dateFrom, rent.price)})`);
+      INSERT INTO CarRent (carId, dateTo, dateFrom, price, countDays)
+      VALUES (
+      ${rent.carId}, '${rent.dateTo}', '${rent.dateFrom}', ${rent.price}, ${rent.countDays}
+      );`);
   }
 
   async getAvailableCar(
@@ -38,9 +42,9 @@ export class DatabaseService {
     return await this.executeQuery(`
       SELECT carId
       FROM CarRent
-      WHERE dateTo=${availableCarDto.dateTo} AND 
-            dateFrom=${availableCarDto.dateFrom} AND
-            carId=${availableCarDto.carId}`);
+      WHERE dateFrom BETWEEN '${availableCarDto.dateFrom}'::DATE + INTERVAL '-3 day' AND '${availableCarDto.dateTo}'::DATE + INTERVAL '3 day' AND
+            dateTo BETWEEN '${availableCarDto.dateFrom}'::DATE + INTERVAL '-3 day' AND '${availableCarDto.dateTo}'::DATE + INTERVAL '3 day' AND 
+            carId='${availableCarDto.carId}'`);
   }
 
   async getReport(
@@ -48,16 +52,11 @@ export class DatabaseService {
     lastDate: string,
   ): Promise<RentReportInterface[]> {
     return await this.executeQuery(`
-      SELECT carId, SUM(
-        CASE
-          WHEN (dateTo = dateFrom) THEN 1
-          ELSE dateTo - dateFrom
-          END
-      )
+      SELECT carId, SUM(countDays)
       as count
       FROM CarRent
-      WHERE dateTo BETWEEN (${firstDate} AND ${lastDate}) AND
-            dateFrom BETWEEN (${firstDate} AND ${lastDate}) AND
+      WHERE dateTo BETWEEN '${firstDate}'::DATE AND '${lastDate}'::DATE AND
+            dateFrom BETWEEN '${firstDate}'::DATE AND '${lastDate}'::DATE AND
             dateTo < dateFrom`);
   }
 }

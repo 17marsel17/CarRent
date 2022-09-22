@@ -28,4 +28,9 @@ export class CarController {
   createNewRent(@Body() createNewRentDto: CreateNewRentDto) {
     return this.carService.createNewRent(createNewRentDto);
   }
+
+  @Get('/init')
+  initDb() {
+    return this.carService.initDb();
+  }
 }

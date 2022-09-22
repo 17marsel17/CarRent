@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { AvailableCarDto } from './dto/available-car.dto';
 import { PriceCarDto } from './dto/price-car.dto';
 import { DatabaseService } from '../database/database.service';
@@ -6,8 +6,6 @@ import { CreateNewRentDto } from './dto/create-new-rent.dto';
 import * as moment from 'moment';
 import { RentEntity } from '../entity/rent.entity';
 import { ReportDto } from './dto/report.dto';
-import { CarEntity } from '../entity/car.entity';
-import { RentReportInterface } from './interfaces/rent-report.interface';
 
 @Injectable()
 export class CarService {
@@ -17,26 +15,36 @@ export class CarService {
     this.checkDate(availableCarDto.dateTo);
     this.checkDate(availableCarDto.dateFrom);
 
+    if (
+      moment(availableCarDto.dateTo, 'YYYY-MM-DD') <
+      moment(availableCarDto.dateFrom, 'YYYY_MM_DD')
+    ) {
+      throw new BadRequestException(
+        'Дата окончания бронирования не может быть меньше даты начала бронирования',
+      );
+    }
+
     const result = await this.databaseService.getAvailableCar(availableCarDto);
 
-    if (!result) {
+    console.log('result', result);
+
+    if (result.length) {
       return false;
     }
     return true;
   }
 
   getPrice(priceCarDto: PriceCarDto): number {
-    const startRent = moment(priceCarDto.dateFrom);
-    const endRent = moment(priceCarDto.dateTo);
-    const days = endRent.diff(startRent, 'days');
+    const days = this.getCountDays(priceCarDto.dateFrom, priceCarDto.dateTo);
 
     if (days > 30) {
       throw new Error('Максимальный срок аренды 30 дней');
     }
 
     const basePrice = Number(process.env.BASE_PRICE);
+
     let price = 0;
-    for (let i = 1; i < days; i++) {
+    for (let i = 1; i <= days; i++) {
       if (i <= 4) {
         price += basePrice;
       } else if (i <= 9) {
@@ -85,7 +93,7 @@ export class CarService {
     });
 
     if (!available) {
-      throw new Error('Автомобиль не доступен в выбранные даты');
+      throw new BadRequestException('Автомобиль не доступен в выбранные даты');
     }
 
     const price = this.getPrice({
@@ -98,18 +106,49 @@ export class CarService {
       dateFrom: createNewRentDto.dateFrom,
       dateTo: createNewRentDto.dateTo,
       price: price,
+      countDays: this.getCountDays(
+        createNewRentDto.dateFrom,
+        createNewRentDto.dateTo,
+      ),
     };
     return this.databaseService.createNewCarRent(newRent);
   }
 
   checkDate(date: string): boolean {
     const weekDay = moment(date).weekday();
-    if (weekDay == 6 || weekDay == 7) {
-      throw new Error(
+    if (weekDay === 6 || weekDay === 0) {
+      throw new BadRequestException(
         'Начало и конец аренды может выпадать только на будние дни (пн-пт)',
       );
     }
 
     return true;
+  }
+
+  async initDb() {
+    await this.databaseService.createRentDatabase();
+
+    const dateFrom = moment(new Date()).format('yyyy-MM-DD');
+
+    const price = this.getPrice({
+      dateFrom: dateFrom,
+      dateTo: dateFrom,
+    });
+
+    await this.databaseService.createNewCarRent({
+      carId: '1',
+      dateTo: dateFrom,
+      dateFrom: dateFrom,
+      price: price,
+      countDays: this.getCountDays(dateFrom, dateFrom),
+    });
+  }
+
+  getCountDays(dateFrom: string, dateTo: string): number {
+    const startRent = moment(dateFrom, 'YYYY-MM-DD');
+    const endRent = moment(dateTo, 'YYYY-MM-DD');
+    let days = endRent.diff(startRent, 'days') + 1;
+
+    return days;
   }
 }

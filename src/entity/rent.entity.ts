@@ -4,4 +4,5 @@ export class RentEntity {
   dateTo: string;
   dateFrom: string;
   price: number;
+  countDays: number;
 }
