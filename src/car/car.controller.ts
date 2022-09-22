@@ -4,12 +4,18 @@ import { AvailableCarDto } from './dto/available-car.dto';
 import { PriceCarDto } from './dto/price-car.dto';
 import { CreateNewRentDto } from './dto/create-new-rent.dto';
 import { ReportDto } from './dto/report.dto';
+import { ApiResponse } from '@nestjs/swagger';
 
 @Controller('/car')
 export class CarController {
   constructor(private carService: CarService) {}
 
   @Get()
+  @ApiResponse({
+    status: 400,
+    description:
+      'Дата окончания бронирования не может быть меньше даты начала бронирования',
+  })
   getCar(@Body() availableCarDto: AvailableCarDto) {
     return this.carService.getCar(availableCarDto);
   }

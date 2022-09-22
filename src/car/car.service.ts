@@ -14,6 +14,8 @@ export class CarService {
   constructor(private readonly databaseService: DatabaseService) {}
 
   async getCar(availableCarDto: AvailableCarDto): Promise<boolean> {
+    this.getCountDays(availableCarDto.date_from, availableCarDto.date_to);
+
     const cars = await this.getAllCars();
 
     const car = cars.find((el) => el.car_id === availableCarDto.car_id);
@@ -51,10 +53,6 @@ export class CarService {
 
   getPrice(priceCarDto: PriceCarDto): number {
     const days = this.getCountDays(priceCarDto.date_from, priceCarDto.date_to);
-
-    if (days > 30) {
-      throw new Error('Максимальный срок аренды 30 дней');
-    }
 
     const basePrice = Number(process.env.BASE_PRICE);
 
@@ -178,6 +176,10 @@ export class CarService {
     const startRent = moment(dateFrom, 'YYYY-MM-DD');
     const endRent = moment(dateTo, 'YYYY-MM-DD');
     let days = endRent.diff(startRent, 'days') + 1;
+
+    if (days > 30) {
+      throw new BadRequestException('Максимальный срок аренды 30 дней');
+    }
 
     return days;
   }
