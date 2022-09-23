@@ -19,7 +19,11 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "migrate": "node-pg-migrate"
+    "migrate": "node-pg-migrate --migration-file-language ts -d POSTGRES_URL",
+    "migrate:up": "npm run migrate up",
+    "migrate:up:1step": "npm run migrate up 1",
+    "migrate:down:1step": "npm run migrate down 1",
+    "migrate:create": "npm run migrate create new"
   },
   "dependencies": {
     "@nestjs/common": "^9.0.0",
@@ -28,6 +32,8 @@
     "@nestjs/passport": "^9.0.0",
     "@nestjs/platform-express": "^9.0.0",
     "@nestjs/swagger": "^6.1.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.13.2",
     "moment": "^2.29.4",
     "node-pg-migrate": "^6.2.2",
     "pg": "^8.8.0",

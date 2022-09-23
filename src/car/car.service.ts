@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { AvailableCarDto } from './dto/available-car.dto';
 import { PriceCarDto } from './dto/price-car.dto';
 import { DatabaseService } from '../database/database.service';
@@ -7,7 +7,6 @@ import * as moment from 'moment';
 import { RentEntity } from '../entity/rent.entity';
 import { ReportDto } from './dto/report.dto';
 import { CarEntity } from '../entity/car.entity';
-import * as util from 'util';
 
 @Injectable()
 export class CarService {
@@ -21,10 +20,7 @@ export class CarService {
     const car = cars.find((el) => el.car_id === availableCarDto.car_id);
 
     if (!car) {
-      throw new BadRequestException(
-        'Машина с таким carId не существует. Машины в парке:' +
-          JSON.stringify(cars),
-      );
+      throw new NotFoundException('Машина с таким carId не существует');
     }
 
     this.checkDate(availableCarDto.date_to);
@@ -32,7 +28,7 @@ export class CarService {
 
     if (
       moment(availableCarDto.date_to, 'YYYY-MM-DD') <
-      moment(availableCarDto.date_from, 'YYYY_MM_DD')
+      moment(availableCarDto.date_from, 'YYYY-MM-DD')
     ) {
       throw new BadRequestException(
         'Дата окончания бронирования не может быть меньше даты начала бронирования',
@@ -73,7 +69,9 @@ export class CarService {
   }
 
   async getReport(reportDto: ReportDto) {
-    const result = await this.databaseService.getReport(reportDto.current_date);
+    const result = await this.databaseService.getReport(
+      moment(reportDto.current_date).format('YYYY-MM-DD'),
+    );
 
     const cars: CarEntity[] = await this.getAllCars();
 
@@ -115,8 +113,8 @@ export class CarService {
 
     const newRent: RentEntity = {
       car_id: createNewRentDto.car_id,
-      date_from: createNewRentDto.date_from,
-      date_to: createNewRentDto.date_to,
+      date_from: moment(createNewRentDto.date_from).format('YYYY-MM-DD'),
+      date_to: moment(createNewRentDto.date_to).format('YYYY-MM-DD'),
       price: price,
       count_days: this.getCountDays(
         createNewRentDto.date_from,
@@ -126,7 +124,7 @@ export class CarService {
     return this.databaseService.createNewCarRent(newRent);
   }
 
-  checkDate(date: string): boolean {
+  checkDate(date: Date): boolean {
     const weekDay = moment(date).weekday();
     if (weekDay === 6 || weekDay === 0) {
       throw new BadRequestException(
@@ -138,25 +136,8 @@ export class CarService {
   }
 
   async initDb() {
-    await this.databaseService.createCarDatabase();
-    const numbersOfCar = [
-      'А123CB777',
-      'M234СВ777',
-      'P456HO777',
-      'T567TT777',
-      'E678CB777',
-    ];
 
-    for (let i = 1; i <= 5; i++) {
-      await this.databaseService.insertCar({
-        car_id: i.toString(),
-        number_car: numbersOfCar[i - 1],
-      });
-    }
-
-    await this.databaseService.createRentDatabase();
-
-    const dateFrom = moment(new Date()).format('yyyy-MM-DD');
+    const dateFrom = new Date();
 
     const price = this.getPrice({
       date_from: dateFrom,
@@ -165,14 +146,14 @@ export class CarService {
 
     await this.databaseService.createNewCarRent({
       car_id: '1',
-      date_to: dateFrom,
-      date_from: dateFrom,
+      date_to: moment(dateFrom).format('YYYY-MM-DD'),
+      date_from: moment(dateFrom).format('YYYY-MM-DD'),
       price: price,
       count_days: this.getCountDays(dateFrom, dateFrom),
     });
   }
 
-  getCountDays(dateFrom: string, dateTo: string): number {
+  getCountDays(dateFrom: Date, dateTo: Date): number {
     const startRent = moment(dateFrom, 'YYYY-MM-DD');
     const endRent = moment(dateTo, 'YYYY-MM-DD');
     let days = endRent.diff(startRent, 'days') + 1;
