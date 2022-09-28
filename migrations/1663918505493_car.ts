@@ -29,7 +29,11 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
                         ('2', 'M234СВ777'),
                         ('3', 'P456HO777'),
                         ('4', 'T567TT777'),
-                        ('5', 'E678CB777')`)
+                        ('5', 'E678CB777')`);
 }
 
-export async function down(pgm: MigrationBuilder): Promise<void> {}
+export async function down(pgm: MigrationBuilder): Promise<void> {
+  pgm.sql(`DROP TABLE IF EXISTS CarRent`);
+
+  pgm.sql(`DROP TABLE IF EXISTS Car`);
+}

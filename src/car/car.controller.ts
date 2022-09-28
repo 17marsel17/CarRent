@@ -24,7 +24,8 @@ export class CarController {
 
   @Get('/price')
   getPrice(@Body() priceCarDto: PriceCarDto): { price: number } {
-    return { price: this.carService.getPrice(priceCarDto) };
+    const price = this.carService.getPrice(priceCarDto);
+    return { price: price };
   }
 
   @Get('/report')
@@ -35,10 +36,5 @@ export class CarController {
   @Post('/rent')
   createNewRent(@Body() createNewRentDto: CreateNewRentDto) {
     return this.carService.createNewRent(createNewRentDto);
-  }
-
-  @Get('/init')
-  initDb() {
-    return this.carService.initDb();
   }
 }

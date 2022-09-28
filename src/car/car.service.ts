@@ -1,23 +1,26 @@
-import { BadRequestException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AvailableCarDto } from './dto/available-car.dto';
 import { PriceCarDto } from './dto/price-car.dto';
-import { DatabaseService } from '../database/database.service';
 import { CreateNewRentDto } from './dto/create-new-rent.dto';
 import * as moment from 'moment';
 import { RentEntity } from '../entity/rent.entity';
 import { ReportDto } from './dto/report.dto';
 import { CarEntity } from '../entity/car.entity';
+import { CarRepository } from './car.repository';
+import { BASE_PRICE } from '../config';
 
 @Injectable()
 export class CarService {
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(private readonly carRepository: CarRepository) {}
 
   async getCar(availableCarDto: AvailableCarDto): Promise<boolean> {
     this.getCountDays(availableCarDto.date_from, availableCarDto.date_to);
 
-    const cars = await this.getAllCars();
-
-    const car = cars.find((el) => el.car_id === availableCarDto.car_id);
+    const car = await this.carRepository.findCar(availableCarDto.car_id);
 
     if (!car) {
       throw new NotFoundException('Машина с таким carId не существует');
@@ -35,22 +38,22 @@ export class CarService {
       );
     }
 
-    const result = await this.databaseService.getAvailableCar(availableCarDto);
+    const result = await this.carRepository.getAvailableCar(availableCarDto);
 
-    if (result.length) {
+    if (result) {
       return false;
     }
     return true;
   }
 
   async getAllCars(): Promise<CarEntity[]> {
-    return await this.databaseService.findAllCars();
+    return await this.carRepository.findAllCars();
   }
 
   getPrice(priceCarDto: PriceCarDto): number {
     const days = this.getCountDays(priceCarDto.date_from, priceCarDto.date_to);
 
-    const basePrice = Number(process.env.BASE_PRICE);
+    const basePrice = Number(BASE_PRICE);
 
     let price = 0;
     for (let i = 1; i <= days; i++) {
@@ -69,7 +72,7 @@ export class CarService {
   }
 
   async getReport(reportDto: ReportDto) {
-    const result = await this.databaseService.getReport(
+    const result = await this.carRepository.getReport(
       moment(reportDto.current_date).format('YYYY-MM-DD'),
     );
 
@@ -93,9 +96,7 @@ export class CarService {
     };
   }
 
-  async createNewRent(
-    createNewRentDto: CreateNewRentDto,
-  ): Promise<RentEntity[]> {
+  async createNewRent(createNewRentDto: CreateNewRentDto): Promise<RentEntity> {
     const available = await this.getCar({
       car_id: createNewRentDto.car_id,
       date_from: createNewRentDto.date_from,
@@ -121,7 +122,7 @@ export class CarService {
         createNewRentDto.date_to,
       ),
     };
-    return this.databaseService.createNewCarRent(newRent);
+    return this.carRepository.createNewCarRent(newRent);
   }
 
   checkDate(date: Date): boolean {
@@ -133,24 +134,6 @@ export class CarService {
     }
 
     return true;
-  }
-
-  async initDb() {
-
-    const dateFrom = new Date();
-
-    const price = this.getPrice({
-      date_from: dateFrom,
-      date_to: dateFrom,
-    });
-
-    await this.databaseService.createNewCarRent({
-      car_id: '1',
-      date_to: moment(dateFrom).format('YYYY-MM-DD'),
-      date_from: moment(dateFrom).format('YYYY-MM-DD'),
-      price: price,
-      count_days: this.getCountDays(dateFrom, dateFrom),
-    });
   }
 
   getCountDays(dateFrom: Date, dateTo: Date): number {

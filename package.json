@@ -19,7 +19,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "migrate": "node-pg-migrate --migration-file-language ts -d POSTGRES_URL",
+    "migrate": "ts-node node_modules/node-pg-migrate/bin/node-pg-migrate --migration-file-language ts -d POSTGRES_URL",
     "migrate:up": "npm run migrate up",
     "migrate:up:1step": "npm run migrate up 1",
     "migrate:down:1step": "npm run migrate down 1",
